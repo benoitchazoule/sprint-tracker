@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dev",
+      "runtimeExecutable": "/Users/benoitchazoule/.nvm/versions/node/v24.5.0/bin/node",
+      "runtimeArgs": ["/Users/benoitchazoule/Workspace/sprint-tracker/node_modules/.bin/vite"],
+      "port": 5173
+    }
+  ]
+}

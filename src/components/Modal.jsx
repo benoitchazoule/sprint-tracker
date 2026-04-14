@@ -3,9 +3,12 @@ import React, { useEffect, useRef } from 'react';
 export default function Modal({ title, onClose, children }) {
   const modalRef = useRef(null);
 
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     function handleKeyDown(e) {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onCloseRef.current();
     }
     document.addEventListener('keydown', handleKeyDown);
 
@@ -18,7 +21,7 @@ export default function Modal({ title, onClose, children }) {
       // Restore focus on close
       prev?.focus();
     };
-  }, [onClose]);
+  }, []);
 
   return (
     <div

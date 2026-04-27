@@ -76,6 +76,7 @@
   "grid.projected": "Projet\u00e9 (jour futur)",
   "grid.inactive": "D\u00e9veloppeur non actif \u00e0 cette date",
   "grid.addComment": "Ajouter/modifier un commentaire",
+  "grid.clickToReset": "cliquer pour r\u00e9initialiser",
   "grid.commentPlaceholder": "Ajouter un commentaire (ex. arr\u00eat maladie, cong\u00e9...)",
   "grid.save": "Enregistrer",
   "grid.selected": "{count} cellule(s) s\u00e9lectionn\u00e9e(s)",
@@ -103,6 +104,7 @@
 
   "toast.eventAdded": "\u00c9v\u00e9nement ajout\u00e9",
   "toast.dayUpdated": "Jour mis \u00e0 jour",
+  "toast.dayReset": "Jour r\u00e9initialis\u00e9",
   "toast.commentSaved": "Commentaire enregistr\u00e9",
   "toast.devAdded": "D\u00e9veloppeur ajout\u00e9",
   "toast.devUpdated": "D\u00e9veloppeur mis \u00e0 jour",

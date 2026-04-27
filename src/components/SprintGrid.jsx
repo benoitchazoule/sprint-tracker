@@ -3,7 +3,7 @@ import { formatNumericDate, getDayName, isToday, isPast } from '../utils/dates';
 import { useI18n } from '../i18n';
 import { MessageSquare, Check, X } from 'lucide-react';
 
-export default function SprintGrid({ sprint, developers, onToggleDay, onUpdateComment }) {
+export default function SprintGrid({ sprint, developers, onToggleDay, onUpdateComment, onResetDay }) {
   const { t, dateLocale } = useI18n();
   const [commentPopup, setCommentPopup] = useState(null);
   const [commentText, setCommentText] = useState('');
@@ -54,13 +54,17 @@ export default function SprintGrid({ sprint, developers, onToggleDay, onUpdateCo
     return true;
   }
 
-  function handleToggle(date, devId, currentWorked, currentComment) {
-    // 3-state cycle: 1 → 0.5 → 0 → 1
+  function handleToggle(date, devId, currentWorked, currentComment, hasEntry) {
+    // Cycle: default → ½ → ✗ → default (reset removes the entry)
+    if (currentWorked === 0 && hasEntry && onResetDay) {
+      onResetDay(devId, date, currentWorked, currentComment || '');
+      return;
+    }
     const newWorked = currentWorked === 1 ? 0.5 : currentWorked === 0.5 ? 0 : 1;
     onToggleDay(devId, date, newWorked, currentComment || '', currentWorked);
   }
 
-  function handleCellClick(rowIdx, colIdx, date, devId, worked, comment, e) {
+  function handleCellClick(rowIdx, colIdx, date, devId, worked, comment, hasEntry, e) {
     if (e.shiftKey && lastClicked) {
       const newSelection = new Set(selection);
       const startRow = Math.min(lastClicked.row, rowIdx);
@@ -79,7 +83,7 @@ export default function SprintGrid({ sprint, developers, onToggleDay, onUpdateCo
       setSelection(newSelection);
     } else {
       setSelection(new Set());
-      handleToggle(date, devId, worked, comment);
+      handleToggle(date, devId, worked, comment, hasEntry);
     }
     setLastClicked({ row: rowIdx, col: colIdx });
     setFocusedCell({ row: rowIdx, col: colIdx });
@@ -100,7 +104,7 @@ export default function SprintGrid({ sprint, developers, onToggleDay, onUpdateCo
         e.preventDefault();
         if (isCellInteractive(row, col)) {
           const day = sprint.days[row]; const dev = developers[col]; const devDay = day.developers[dev.id];
-          handleToggle(day.date, dev.id, devDay.worked, devDay.comment);
+          handleToggle(day.date, dev.id, devDay.worked, devDay.comment, devDay.hasEntry);
         }
         return;
       case 'Escape': setFocusedCell(null); setSelection(new Set()); return;
@@ -222,10 +226,13 @@ export default function SprintGrid({ sprint, developers, onToggleDay, onUpdateCo
                       : isHalfDay ? 'half-day'
                       : 'not-worked';
 
-                    const toggleTitle = isDefaultFuture ? t('grid.projected')
+                    const baseTitle = isDefaultFuture ? t('grid.projected')
                       : worked === 1 ? t('grid.worked')
                       : isHalfDay ? t('grid.halfDay')
                       : t('grid.notWorked');
+                    const toggleTitle = worked === 0 && devDay.hasEntry
+                      ? `${baseTitle} · ${t('grid.clickToReset')}`
+                      : baseTitle;
 
                     return (
                       <td key={dev.id}>
@@ -234,7 +241,7 @@ export default function SprintGrid({ sprint, developers, onToggleDay, onUpdateCo
                             ref={(el) => { cellRefs.current[refKey] = el; }}
                             tabIndex={0}
                             className={`day-toggle ${toggleClass} ${isSelected ? 'selected' : ''}`}
-                            onClick={(e) => handleCellClick(rowIdx, colIdx, day.date, dev.id, worked, devDay.comment, e)}
+                            onClick={(e) => handleCellClick(rowIdx, colIdx, day.date, dev.id, worked, devDay.comment, devDay.hasEntry, e)}
                             onFocus={() => setFocusedCell({ row: rowIdx, col: colIdx })}
                             title={toggleTitle}
                           >

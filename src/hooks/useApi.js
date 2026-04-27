@@ -240,7 +240,17 @@ export function useEntries(projectId) {
     if (error) throw error;
   };
 
-  return { setEntry, setBulkEntries };
+  const removeEntry = async ({ developerId, date }) => {
+    const { error } = await supabase
+      .from('day_entries')
+      .delete()
+      .eq('project_id', projectId)
+      .eq('developer_id', developerId)
+      .eq('date', date);
+    if (error) throw error;
+  };
+
+  return { setEntry, setBulkEntries, removeEntry };
 }
 
 // ── Export / Import ──

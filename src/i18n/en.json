@@ -76,6 +76,7 @@
   "grid.projected": "Projected (future day)",
   "grid.inactive": "Developer not active on this date",
   "grid.addComment": "Add/edit comment",
+  "grid.clickToReset": "click to reset",
   "grid.commentPlaceholder": "Add a comment (e.g., sick leave, holiday...)",
   "grid.save": "Save",
   "grid.selected": "{count} cell(s) selected",
@@ -103,6 +104,7 @@
 
   "toast.eventAdded": "Event added",
   "toast.dayUpdated": "Day updated",
+  "toast.dayReset": "Day reset to default",
   "toast.commentSaved": "Comment saved",
   "toast.devAdded": "Developer added",
   "toast.devUpdated": "Developer updated",

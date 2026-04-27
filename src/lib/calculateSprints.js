@@ -73,6 +73,7 @@ export function calculateSprints(project, developers, entries) {
             dayData.developers[dev.id] = {
               worked: entry.worked,
               comment: entry.comment,
+              hasEntry: true,
             };
             dayTotal += entry.worked;
           } else if (isPast) {

@@ -21,7 +21,7 @@ export default function ProjectPage({ projects, onUpdateProject }) {
 
   const { developers, setDevelopers, fetchDevelopers, addDeveloper, updateDeveloper, removeDeveloper, reorderDevelopers } = useDevelopers(projectId);
   const { sprints, loading: sprintsLoading, fetchSprints } = useSprints(projectId);
-  const { setEntry, setBulkEntries } = useEntries(projectId);
+  const { setEntry, setBulkEntries, removeEntry } = useEntries(projectId);
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeSprint, setActiveSprint] = useState(-1);
@@ -143,6 +143,15 @@ export default function ProjectPage({ projects, onUpdateProject }) {
     } else {
       showToast(t('toast.dayUpdated'));
     }
+  }
+
+  async function handleResetDay(devId, date, prevWorked, prevComment) {
+    await removeEntry({ developerId: devId, date });
+    fetchSprints();
+    showToast(t('toast.dayReset'), 'success', () => {
+      setEntry({ developerId: devId, date, worked: prevWorked, comment: prevComment || '' });
+      fetchSprints();
+    });
   }
 
   async function handleUpdateComment(devId, date, worked, comment) {
@@ -430,6 +439,7 @@ export default function ProjectPage({ projects, onUpdateProject }) {
                   })}
                   onToggleDay={handleToggleDay}
                   onUpdateComment={handleUpdateComment}
+                  onResetDay={handleResetDay}
                 />
               </div>
             </div>

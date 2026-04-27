@@ -8,7 +8,7 @@ import Dashboard from '../components/Dashboard';
 import Modal from '../components/Modal';
 import {
   LayoutDashboard, Grid3X3, UserPlus, Trash2, Settings, CalendarPlus, GripVertical,
-  ChevronLeft, ChevronRight, Pencil, ChevronDown, ChevronUp, Users,
+  ChevronLeft, ChevronRight, Pencil, ChevronDown, ChevronUp, Users, ArrowRight, Check,
 } from 'lucide-react';
 import { formatShortDate } from '../utils/dates';
 
@@ -505,6 +505,23 @@ export default function ProjectPage({ projects, onUpdateProject }) {
   );
 }
 
+const DEV_AVATAR_COLORS = ['#4f46e5', '#7c3aed', '#6366f1', '#8b5cf6', '#4338ca', '#db2777', '#0891b2', '#059669', '#d97706', '#dc2626'];
+
+function getDevColor(name) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash << 5) - hash + name.charCodeAt(i);
+    hash |= 0;
+  }
+  return DEV_AVATAR_COLORS[Math.abs(hash) % DEV_AVATAR_COLORS.length];
+}
+
+function getDevInitials(name) {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
 function EventModal({ t, developers, onSave, onClose }) {
   const [name, setName] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -534,6 +551,8 @@ function EventModal({ t, developers, onSave, onClose }) {
     }
   }
 
+  const allSelected = selectedDevs.size === developers.length;
+
   return (
     <Modal title={t('event.title')} onClose={onClose}>
       <form onSubmit={handleSubmit}>
@@ -548,54 +567,75 @@ function EventModal({ t, developers, onSave, onClose }) {
             autoFocus
           />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-          <div className="form-group">
-            <label>{t('event.startDate')}</label>
-            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
-          </div>
-          <div className="form-group">
-            <label>{t('event.endDate')}</label>
-            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} min={startDate} required />
+        <div className="form-group">
+          <label>{t('event.dates')}</label>
+          <div className="date-range">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              required
+              aria-label={t('event.startDate')}
+            />
+            <ArrowRight size={14} color="var(--text-light)" style={{ flexShrink: 0 }} />
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              min={startDate}
+              required
+              aria-label={t('event.endDate')}
+            />
           </div>
         </div>
         <div className="form-group">
           <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            {t('event.developers')}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
+              {t('event.developers')}
+              <span style={{
+                fontSize: '0.6875rem',
+                fontWeight: 500,
+                color: 'var(--text-light)',
+                background: 'var(--bg)',
+                padding: '0.0625rem 0.375rem',
+                borderRadius: '999px',
+              }}>
+                {t('event.selectedCount', { selected: selectedDevs.size, total: developers.length })}
+              </span>
+            </span>
             <button
               type="button"
               className="btn-ghost btn-sm"
               style={{ fontSize: '0.6875rem', textTransform: 'none', letterSpacing: 0 }}
               onClick={toggleAll}
             >
-              {selectedDevs.size === developers.length ? t('event.deselectAll') : t('event.selectAll')}
+              {allSelected ? t('event.deselectAll') : t('event.selectAll')}
             </button>
           </label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', marginTop: '0.25rem' }}>
-            {developers.map((dev) => (
-              <label
-                key={dev.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.375rem 0.5rem',
-                  borderRadius: 'var(--radius)',
-                  cursor: 'pointer',
-                  background: selectedDevs.has(dev.id) ? 'var(--primary-light)' : 'var(--bg)',
-                  border: selectedDevs.has(dev.id) ? '1px solid var(--primary)' : '1px solid var(--border)',
-                  fontSize: '0.8125rem',
-                  transition: 'all 0.15s',
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedDevs.has(dev.id)}
-                  onChange={() => toggleDev(dev.id)}
-                  style={{ accentColor: 'var(--primary)' }}
-                />
-                <span style={{ fontWeight: 500 }}>{dev.name}</span>
-              </label>
-            ))}
+          <div className="dev-picker">
+            {developers.map((dev) => {
+              const isSelected = selectedDevs.has(dev.id);
+              const color = getDevColor(dev.name);
+              return (
+                <button
+                  key={dev.id}
+                  type="button"
+                  onClick={() => toggleDev(dev.id)}
+                  className={`dev-chip ${isSelected ? 'selected' : ''}`}
+                  aria-pressed={isSelected}
+                >
+                  <span className="dev-chip-avatar" style={{ background: color }}>
+                    {getDevInitials(dev.name)}
+                    {isSelected && (
+                      <span className="dev-chip-avatar-check">
+                        <Check size={14} strokeWidth={3} />
+                      </span>
+                    )}
+                  </span>
+                  <span className="dev-chip-name">{dev.name}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
         <div className="form-actions">

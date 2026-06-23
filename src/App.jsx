@@ -14,7 +14,7 @@ import Modal from './components/Modal';
 
 function AppContent() {
   const { user, loading: authLoading, signOut } = useAuth();
-  const { projects, loading, fetchProjects, createProject, updateProject, deleteProject } = useProjects();
+  const { projects, loading, fetchProjects, createProject, updateProject, archiveProject, deleteProject } = useProjects();
   const { summaries, fetchSummaries } = useProjectSummaries();
   const location = useLocation();
   const navigate = useNavigate();
@@ -143,7 +143,7 @@ function AppContent() {
                   <Plus size={14} />
                   <span className="sidebar-label">{t('home.newProject')}</span>
                 </button>
-                {projects.map((p) => {
+                {projects.filter((p) => !p.archived).map((p) => {
                   const summary = summaries.find((s) => s.projectId === p.id);
                   return (
                     <Link
@@ -234,6 +234,7 @@ function AppContent() {
                 loading={loading}
                 summaries={summaries}
                 onCreateProject={createProject}
+                onArchiveProject={archiveProject}
                 onDeleteProject={deleteProject}
                 onRefresh={() => { fetchProjects(); fetchSummaries(); }}
               />

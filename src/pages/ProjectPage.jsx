@@ -9,6 +9,7 @@ import Modal from '../components/Modal';
 import {
   LayoutDashboard, Grid3X3, UserPlus, Trash2, Settings, CalendarPlus, GripVertical,
   ChevronLeft, ChevronRight, Pencil, ChevronDown, ChevronUp, Users, ArrowRight, Check,
+  Archive, ArchiveRestore,
 } from 'lucide-react';
 import { formatShortDate } from '../utils/dates';
 
@@ -196,6 +197,14 @@ export default function ProjectPage({ projects, onUpdateProject }) {
     setShowSettings(false);
     fetchSprints();
     showToast(t('toast.settingsSaved'));
+  }
+
+  async function handleToggleArchive() {
+    const archived = !project.archived;
+    await onUpdateProject(project.id, { archived });
+    setShowSettings(false);
+    showToast(archived ? t('toast.projectArchived') : t('toast.projectUnarchived'));
+    if (archived) navigate('/');
   }
 
   async function handleAddEvent({ name, startDate, endDate, developerIds }) {
@@ -483,7 +492,7 @@ export default function ProjectPage({ projects, onUpdateProject }) {
       )}
 
       {showSettings && (
-        <SettingsModal project={project} t={t} onSave={handleUpdateSettings} onClose={() => setShowSettings(false)} />
+        <SettingsModal project={project} t={t} onSave={handleUpdateSettings} onArchive={handleToggleArchive} onClose={() => setShowSettings(false)} />
       )}
 
       {showAddEvent && (
@@ -679,7 +688,7 @@ function DevEditModal({ dev, t, onSave, onClose }) {
   );
 }
 
-function SettingsModal({ project, t, onSave, onClose }) {
+function SettingsModal({ project, t, onSave, onArchive, onClose }) {
   const [name, setName] = useState(project.name);
   const [clientName, setClientName] = useState(project.clientName || '');
   const [daysPerSprint, setDaysPerSprint] = useState(project.daysPerSprint || 18);
@@ -714,9 +723,21 @@ function SettingsModal({ project, t, onSave, onClose }) {
           <label>{t('form.startDate')}</label>
           <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
         </div>
-        <div className="form-actions">
-          <button type="button" className="btn-secondary" onClick={onClose}>{t('form.cancel')}</button>
-          <button type="submit" className="btn-primary">{t('form.save')}</button>
+        <div className="form-actions" style={{ justifyContent: 'space-between' }}>
+          <button
+            type="button"
+            className="btn-secondary btn-icon"
+            onClick={onArchive}
+            title={project.archived ? t('home.unarchive') : t('home.archive')}
+          >
+            {project.archived
+              ? <><ArchiveRestore size={16} /> {t('home.unarchive')}</>
+              : <><Archive size={16} /> {t('home.archive')}</>}
+          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button type="button" className="btn-secondary" onClick={onClose}>{t('form.cancel')}</button>
+            <button type="submit" className="btn-primary">{t('form.save')}</button>
+          </div>
         </div>
       </form>
     </Modal>

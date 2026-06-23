@@ -9,6 +9,7 @@ export function mapProject(row) {
     daysPerSprint: row.days_per_sprint,
     startDate: row.start_date,
     sprintCount: row.sprint_count,
+    archived: row.archived ?? false,
     createdAt: row.created_at,
   };
 }
@@ -45,6 +46,7 @@ export function toProjectRow(data) {
   if (data.daysPerSprint !== undefined) row.days_per_sprint = data.daysPerSprint;
   if (data.startDate !== undefined) row.start_date = data.startDate;
   if (data.sprintCount !== undefined) row.sprint_count = data.sprintCount;
+  if (data.archived !== undefined) row.archived = data.archived;
   return row;
 }
 

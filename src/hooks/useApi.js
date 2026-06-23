@@ -50,13 +50,17 @@ export function useProjects() {
     return project;
   };
 
+  const archiveProject = async (id, archived = true) => {
+    return updateProject(id, { archived });
+  };
+
   const deleteProject = async (id) => {
     const { error } = await supabase.from('projects').delete().eq('id', id);
     if (error) throw error;
     setProjects((prev) => prev.filter((p) => p.id !== id));
   };
 
-  return { projects, loading, fetchProjects, createProject, updateProject, deleteProject };
+  return { projects, loading, fetchProjects, createProject, updateProject, archiveProject, deleteProject };
 }
 
 // ── Developers ──

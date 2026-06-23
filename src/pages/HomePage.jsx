@@ -3,16 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '../components/Toast';
 import { useI18n } from '../i18n';
 import Modal from '../components/Modal';
-import { Plus, Calendar, Users, Layers, Trash2, Download, Upload, AlertTriangle } from 'lucide-react';
+import { Plus, Calendar, Users, Layers, Trash2, Download, Upload, AlertTriangle, Archive, ArchiveRestore } from 'lucide-react';
 import { formatDate } from '../utils/dates';
 import { exportAllData, importAllData } from '../hooks/useApi';
 
-export default function HomePage({ projects, loading, summaries, onCreateProject, onDeleteProject, onRefresh }) {
+export default function HomePage({ projects, loading, summaries, onCreateProject, onArchiveProject, onDeleteProject, onRefresh }) {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { t, dateLocale } = useI18n();
   const [showCreate, setShowCreate] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [view, setView] = useState('active');
   const [form, setForm] = useState({
     name: '',
     clientName: '',
@@ -32,6 +33,11 @@ export default function HomePage({ projects, loading, summaries, onCreateProject
     setForm({ name: '', clientName: '', daysPerSprint: 18, startDate: new Date().toISOString().split('T')[0], sprintCount: 1 });
     showToast(t('toast.projectCreated'));
     navigate(`/project/${project.id}`);
+  }
+
+  async function handleArchive(project, archived) {
+    await onArchiveProject(project.id, archived);
+    showToast(archived ? t('toast.projectArchived') : t('toast.projectUnarchived'));
   }
 
   async function handleExport() {
@@ -66,6 +72,11 @@ export default function HomePage({ projects, loading, summaries, onCreateProject
     input.click();
   }
 
+  const activeProjects = projects.filter((p) => !p.archived);
+  const archivedProjects = projects.filter((p) => p.archived);
+  const isArchivedView = view === 'archived';
+  const visibleProjects = isArchivedView ? archivedProjects : activeProjects;
+
   return (
     <div className="fade-in">
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -86,18 +97,45 @@ export default function HomePage({ projects, loading, summaries, onCreateProject
         </div>
       </div>
 
-      {projects.length === 0 && !loading ? (
-        <div className="empty-state">
-          <Layers size={48} color="var(--text-light)" style={{ marginBottom: '1rem' }} />
-          <h3>{t('home.empty.title')}</h3>
-          <p style={{ marginBottom: '1rem' }}>{t('home.empty.desc')}</p>
-          <button className="btn-primary btn-icon" onClick={() => setShowCreate(true)}>
-            <Plus size={16} /> {t('home.createProject')}
+      {archivedProjects.length > 0 && (
+        <div className="tab-bar" style={{ display: 'flex', gap: '0.25rem', marginBottom: '1.25rem' }}>
+          <button
+            className={`btn-sm btn-icon ${isArchivedView ? 'btn-ghost' : 'btn-secondary'}`}
+            onClick={() => setView('active')}
+          >
+            <Layers size={15} /> {t('home.tabActive', { count: activeProjects.length })}
           </button>
+          <button
+            className={`btn-sm btn-icon ${isArchivedView ? 'btn-secondary' : 'btn-ghost'}`}
+            onClick={() => setView('archived')}
+          >
+            <Archive size={15} /> {t('home.tabArchived', { count: archivedProjects.length })}
+          </button>
+        </div>
+      )}
+
+      {visibleProjects.length === 0 && !loading ? (
+        <div className="empty-state">
+          {isArchivedView ? (
+            <>
+              <Archive size={48} color="var(--text-light)" style={{ marginBottom: '1rem' }} />
+              <h3>{t('home.archivedEmpty.title')}</h3>
+              <p style={{ marginBottom: '1rem' }}>{t('home.archivedEmpty.desc')}</p>
+            </>
+          ) : (
+            <>
+              <Layers size={48} color="var(--text-light)" style={{ marginBottom: '1rem' }} />
+              <h3>{t('home.empty.title')}</h3>
+              <p style={{ marginBottom: '1rem' }}>{t('home.empty.desc')}</p>
+              <button className="btn-primary btn-icon" onClick={() => setShowCreate(true)}>
+                <Plus size={16} /> {t('home.createProject')}
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <div className="projects-grid">
-          {projects.map((p) => {
+          {visibleProjects.map((p) => {
             const summary = (summaries || []).find((s) => s.projectId === p.id);
             return (
               <div key={p.id} className="project-card" onClick={() => navigate(`/project/${p.id}`)}>
@@ -106,17 +144,36 @@ export default function HomePage({ projects, loading, summaries, onCreateProject
                     <h3 style={{ fontSize: '1.0625rem', fontWeight: 600, marginBottom: '0.25rem' }}>{p.name}</h3>
                     {p.clientName && <span className="badge badge-purple">{p.clientName}</span>}
                   </div>
-                  <button
-                    className="btn-ghost"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setConfirmDelete(p);
-                    }}
-                    title={t('project.removeDev')}
-                    aria-label={t('home.deleteConfirm', { name: p.name })}
-                  >
-                    <Trash2 size={16} color="var(--danger)" />
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.125rem' }}>
+                    <span className="tooltip-container">
+                      <button
+                        className="btn-ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleArchive(p, !isArchivedView);
+                        }}
+                        aria-label={isArchivedView ? t('home.unarchive') : t('home.archive')}
+                      >
+                        {isArchivedView
+                          ? <ArchiveRestore size={16} color="var(--primary)" />
+                          : <Archive size={16} color="var(--text-secondary)" />}
+                      </button>
+                      <span className="tooltip">{isArchivedView ? t('home.unarchive') : t('home.archive')}</span>
+                    </span>
+                    <span className="tooltip-container">
+                      <button
+                        className="btn-ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmDelete(p);
+                        }}
+                        aria-label={t('home.deleteConfirm', { name: p.name })}
+                      >
+                        <Trash2 size={16} color="var(--danger)" />
+                      </button>
+                      <span className="tooltip">{t('home.deleteProject')}</span>
+                    </span>
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.8125rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>

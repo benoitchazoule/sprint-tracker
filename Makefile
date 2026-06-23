@@ -2,7 +2,8 @@
 # Usage: make [target]
 
 # Load nvm for node/npm access
-SHELL := /bin/zsh
+# /bin/bash exists on both macOS and Linux CI runners; /bin/zsh does not.
+SHELL := /bin/bash
 export NVM_DIR := $(HOME)/.nvm
 NVM_LOAD := source $(NVM_DIR)/nvm.sh && nvm use 22 > /dev/null 2>&1
 

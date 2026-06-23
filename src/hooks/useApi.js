@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { mapProject, mapDeveloper, mapDayEntry, toProjectRow, toDeveloperRow, toDayEntryRow } from '../lib/mappers';
+import { mapProject, mapDeveloper, mapDayEntry, mapProjectShare, toProjectRow, toDeveloperRow, toDayEntryRow } from '../lib/mappers';
 import { calculateSprints, calculateProjectSummary } from '../lib/calculateSprints';
 
 // ── Projects ──
@@ -142,6 +142,49 @@ export function useDevelopers(projectId) {
   };
 
   return { developers, setDevelopers, fetchDevelopers, addDeveloper, updateDeveloper, removeDeveloper, reorderDevelopers };
+}
+
+// ── Project Sharing ──
+
+export function useProjectShares(projectId) {
+  const [shares, setShares] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchShares = useCallback(async () => {
+    if (!projectId) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('get_project_shares', {
+        p_project_id: projectId,
+      });
+      if (error) throw error;
+      setShares((data || []).map(mapProjectShare));
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
+  const shareProject = async (email) => {
+    const { data, error } = await supabase.rpc('share_project', {
+      p_project_id: projectId,
+      p_email: email,
+    });
+    if (error) throw error;
+    const share = mapProjectShare(Array.isArray(data) ? data[0] : data);
+    setShares((prev) => {
+      if (prev.some((s) => s.id === share.id)) return prev;
+      return [...prev, share];
+    });
+    return share;
+  };
+
+  const removeShare = async (id) => {
+    const { error } = await supabase.from('project_shares').delete().eq('id', id);
+    if (error) throw error;
+    setShares((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  return { shares, loading, fetchShares, shareProject, removeShare };
 }
 
 // ── Sprints (computed client-side) ──

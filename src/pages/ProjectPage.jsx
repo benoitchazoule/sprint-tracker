@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useDevelopers, useSprints, useEntries } from '../hooks/useApi';
+import { useDevelopers, useSprints, useEntries, useProjectShares } from '../hooks/useApi';
 import { useToast } from '../components/Toast';
 import { useI18n } from '../i18n';
+import { useAuth } from '../contexts/AuthContext';
 import SprintGrid from '../components/SprintGrid';
 import Dashboard from '../components/Dashboard';
 import Modal from '../components/Modal';
 import {
   LayoutDashboard, Grid3X3, UserPlus, Trash2, Settings, CalendarPlus, GripVertical,
   ChevronLeft, ChevronRight, Pencil, ChevronDown, ChevronUp, Users, ArrowRight, Check,
-  Archive, ArchiveRestore,
+  Archive, ArchiveRestore, Share2, X, Mail,
 } from 'lucide-react';
 import { formatShortDate } from '../utils/dates';
 
@@ -19,10 +20,14 @@ export default function ProjectPage({ projects, onUpdateProject }) {
   const project = projects.find((p) => p.id === projectId);
   const { showToast } = useToast();
   const { t, dateLocale } = useI18n();
+  const { user } = useAuth();
 
   const { developers, setDevelopers, fetchDevelopers, addDeveloper, updateDeveloper, removeDeveloper, reorderDevelopers } = useDevelopers(projectId);
   const { sprints, loading: sprintsLoading, fetchSprints } = useSprints(projectId);
   const { setEntry, setBulkEntries, removeEntry } = useEntries(projectId);
+  const { shares, fetchShares, shareProject, removeShare } = useProjectShares(projectId);
+
+  const isOwner = project ? project.userId === user?.id : false;
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeSprint, setActiveSprint] = useState(-1);
@@ -37,6 +42,7 @@ export default function ProjectPage({ projects, onUpdateProject }) {
   const [newDevStartDate, setNewDevStartDate] = useState('');
   const [newDevEndDate, setNewDevEndDate] = useState('');
   const [showSettings, setShowSettings] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const [editingDev, setEditingDev] = useState(null);
   const [devsExpanded, setDevsExpanded] = useState(false);
   const [showAddEvent, setShowAddEvent] = useState(false);
@@ -49,7 +55,8 @@ export default function ProjectPage({ projects, onUpdateProject }) {
   const refresh = useCallback(() => {
     fetchDevelopers();
     fetchSprints();
-  }, [fetchDevelopers, fetchSprints]);
+    fetchShares();
+  }, [fetchDevelopers, fetchSprints, fetchShares]);
 
   useEffect(() => {
     refresh();
@@ -207,6 +214,25 @@ export default function ProjectPage({ projects, onUpdateProject }) {
     if (archived) navigate('/');
   }
 
+  async function handleShare(email) {
+    try {
+      await shareProject(email);
+      showToast(t('toast.shareAdded'));
+      return { ok: true };
+    } catch (err) {
+      const code = err?.message || '';
+      let message = t('share.errorGeneric');
+      if (code.includes('user_not_found')) message = t('share.errorUserNotFound');
+      else if (code.includes('cannot_share_with_self')) message = t('share.errorSelf');
+      return { ok: false, message };
+    }
+  }
+
+  async function handleRemoveShare(id) {
+    await removeShare(id);
+    showToast(t('toast.shareRemoved'));
+  }
+
   async function handleAddEvent({ name, startDate, endDate, developerIds }) {
     // Generate entries for selected developers across all weekdays in the range
     const entries = [];
@@ -281,6 +307,11 @@ export default function ProjectPage({ projects, onUpdateProject }) {
             {project.clientName && (
               <span className="badge badge-purple">{project.clientName}</span>
             )}
+            {!isOwner && (
+              <span className="badge badge-blue" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                <Share2 size={11} /> {t('share.sharedBadge')}
+              </span>
+            )}
           </div>
         </div>
 
@@ -310,6 +341,12 @@ export default function ProjectPage({ projects, onUpdateProject }) {
         <button className="btn-ghost btn-sm btn-icon" onClick={() => setShowAddEvent(true)} title={t('event.addEvent')}>
           <CalendarPlus size={14} />
         </button>
+        {isOwner && (
+          <button className="btn-ghost btn-sm btn-icon" onClick={() => setShowShare(true)} title={t('share.title')}>
+            <Share2 size={14} />
+            {shares.length > 0 && <span className="badge badge-blue" style={{ fontSize: '0.625rem' }}>{shares.length}</span>}
+          </button>
+        )}
         <button className="btn-ghost btn-sm" onClick={() => setShowSettings(true)} title={t('project.settings')}>
           <Settings size={14} />
         </button>
@@ -492,7 +529,17 @@ export default function ProjectPage({ projects, onUpdateProject }) {
       )}
 
       {showSettings && (
-        <SettingsModal project={project} t={t} onSave={handleUpdateSettings} onArchive={handleToggleArchive} onClose={() => setShowSettings(false)} />
+        <SettingsModal project={project} t={t} isOwner={isOwner} onSave={handleUpdateSettings} onArchive={handleToggleArchive} onClose={() => setShowSettings(false)} />
+      )}
+
+      {showShare && (
+        <ShareModal
+          t={t}
+          shares={shares}
+          onShare={handleShare}
+          onRemove={handleRemoveShare}
+          onClose={() => setShowShare(false)}
+        />
       )}
 
       {showAddEvent && (
@@ -688,7 +735,103 @@ function DevEditModal({ dev, t, onSave, onClose }) {
   );
 }
 
-function SettingsModal({ project, t, onSave, onArchive, onClose }) {
+function ShareModal({ t, shares, onShare, onRemove, onClose }) {
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    const trimmed = email.trim();
+    if (!trimmed || submitting) return;
+    setError('');
+    setSubmitting(true);
+    const result = await onShare(trimmed);
+    setSubmitting(false);
+    if (result.ok) {
+      setEmail('');
+    } else {
+      setError(result.message);
+    }
+  }
+
+  return (
+    <Modal title={t('share.title')} onClose={onClose}>
+      <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', lineHeight: 'var(--leading-normal)', marginBottom: '1rem' }}>
+        {t('share.description')}
+      </p>
+
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label>{t('share.emailLabel')}</label>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setError(''); }}
+              placeholder={t('share.emailPlaceholder')}
+              style={{ flex: 1 }}
+              autoFocus
+            />
+            <button type="submit" className="btn-primary btn-icon" disabled={!email.trim() || submitting}>
+              <Share2 size={14} /> {t('share.add')}
+            </button>
+          </div>
+          {error && (
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--danger)', marginTop: '0.375rem' }}>{error}</p>
+          )}
+        </div>
+      </form>
+
+      <div className="form-group" style={{ marginBottom: 0 }}>
+        <label>{t('share.sharedWith')}</label>
+        {shares.length === 0 ? (
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-light)', padding: '0.5rem 0' }}>
+            {t('share.noShares')}
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', marginTop: '0.25rem' }}>
+            {shares.map((share) => (
+              <div
+                key={share.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: 'var(--bg)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius)',
+                  padding: '0.5rem 0.75rem',
+                }}
+              >
+                <Mail size={14} color="var(--text-light)" style={{ flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: 'var(--text-sm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {share.email}
+                </span>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  style={{ padding: '0.125rem' }}
+                  onClick={() => onRemove(share.id)}
+                  title={t('share.remove')}
+                  aria-label={t('share.remove')}
+                >
+                  <X size={16} color="var(--danger)" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="form-actions">
+        <button type="button" className="btn-secondary" onClick={onClose}>{t('form.cancel')}</button>
+      </div>
+    </Modal>
+  );
+}
+
+function SettingsModal({ project, t, isOwner, onSave, onArchive, onClose }) {
   const [name, setName] = useState(project.name);
   const [clientName, setClientName] = useState(project.clientName || '');
   const [daysPerSprint, setDaysPerSprint] = useState(project.daysPerSprint || 18);
@@ -724,16 +867,18 @@ function SettingsModal({ project, t, onSave, onArchive, onClose }) {
           <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
         </div>
         <div className="form-actions" style={{ justifyContent: 'space-between' }}>
-          <button
-            type="button"
-            className="btn-secondary btn-icon"
-            onClick={onArchive}
-            title={project.archived ? t('home.unarchive') : t('home.archive')}
-          >
-            {project.archived
-              ? <><ArchiveRestore size={16} /> {t('home.unarchive')}</>
-              : <><Archive size={16} /> {t('home.archive')}</>}
-          </button>
+          {isOwner ? (
+            <button
+              type="button"
+              className="btn-secondary btn-icon"
+              onClick={onArchive}
+              title={project.archived ? t('home.unarchive') : t('home.archive')}
+            >
+              {project.archived
+                ? <><ArchiveRestore size={16} /> {t('home.unarchive')}</>
+                : <><Archive size={16} /> {t('home.archive')}</>}
+            </button>
+          ) : <span />}
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button type="button" className="btn-secondary" onClick={onClose}>{t('form.cancel')}</button>
             <button type="submit" className="btn-primary">{t('form.save')}</button>

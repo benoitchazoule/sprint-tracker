@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../components/Toast';
 import { useI18n } from '../i18n';
+import { useAuth } from '../contexts/AuthContext';
 import Modal from '../components/Modal';
-import { Plus, Calendar, Users, Layers, Trash2, Download, Upload, AlertTriangle, Archive, ArchiveRestore } from 'lucide-react';
+import { Plus, Calendar, Users, Layers, Trash2, Download, Upload, AlertTriangle, Archive, ArchiveRestore, Share2 } from 'lucide-react';
 import { formatDate } from '../utils/dates';
 import { exportAllData, importAllData } from '../hooks/useApi';
 
@@ -11,6 +12,7 @@ export default function HomePage({ projects, loading, summaries, onCreateProject
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { t, dateLocale } = useI18n();
+  const { user } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [view, setView] = useState('active');
@@ -137,13 +139,22 @@ export default function HomePage({ projects, loading, summaries, onCreateProject
         <div className="projects-grid">
           {visibleProjects.map((p) => {
             const summary = (summaries || []).find((s) => s.projectId === p.id);
+            const isOwner = p.userId === user?.id;
             return (
               <div key={p.id} className="project-card" onClick={() => navigate(`/project/${p.id}`)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
                   <div>
                     <h3 style={{ fontSize: '1.0625rem', fontWeight: 600, marginBottom: '0.25rem' }}>{p.name}</h3>
-                    {p.clientName && <span className="badge badge-purple">{p.clientName}</span>}
+                    <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                      {p.clientName && <span className="badge badge-purple">{p.clientName}</span>}
+                      {!isOwner && (
+                        <span className="badge badge-blue" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Share2 size={11} /> {t('share.sharedBadge')}
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  {isOwner && (
                   <div style={{ display: 'flex', gap: '0.125rem' }}>
                     <span className="tooltip-container">
                       <button
@@ -174,6 +185,7 @@ export default function HomePage({ projects, loading, summaries, onCreateProject
                       <span className="tooltip">{t('home.deleteProject')}</span>
                     </span>
                   </div>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.8125rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>

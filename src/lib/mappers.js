@@ -26,6 +26,16 @@ export function mapDeveloper(row) {
   };
 }
 
+export function mapProjectShare(row) {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    userId: row.user_id,
+    email: row.email,
+    createdAt: row.created_at,
+  };
+}
+
 export function mapDayEntry(row) {
   return {
     id: row.id,

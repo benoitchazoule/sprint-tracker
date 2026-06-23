@@ -15,6 +15,9 @@ jobs:
         with:
           version: latest
 
+      - name: Check migration filenames
+        run: make db-check
+
       - name: Link project
         run: supabase link --project-ref $SUPABASE_PROJECT_ID
         env:

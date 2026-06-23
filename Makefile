@@ -6,7 +6,7 @@ SHELL := /bin/zsh
 export NVM_DIR := $(HOME)/.nvm
 NVM_LOAD := source $(NVM_DIR)/nvm.sh && nvm use 22 > /dev/null 2>&1
 
-.PHONY: help install start stop restart dev db db-migrate db-reset db-push studio migrate-data status logs build clean
+.PHONY: help install start stop restart dev db db-new db-migrate db-reset db-push db-check studio migrate-data status logs build clean
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -33,6 +33,22 @@ dev: ## Start only the Vite dev server (Supabase must be running)
 
 db: ## Start only Supabase (database, auth, studio)
 	supabase start
+
+db-new: ## Create a new timestamped migration (usage: make db-new NAME=add_foo)
+	@if [ -z "$(NAME)" ]; then echo "Usage: make db-new NAME=add_foo"; exit 1; fi
+	supabase migration new $(NAME)
+
+db-check: ## Verify all migration filenames follow the <timestamp>_name.sql convention
+	@fail=0; \
+	for f in supabase/migrations/*.sql; do \
+		[ -e "$$f" ] || continue; \
+		echo "$$(basename $$f)" | grep -Eq '^[0-9]{14}_[a-z0-9_]+\.sql$$' || { echo "  Invalid: $$f"; fail=1; }; \
+	done; \
+	if [ "$$fail" = "1" ]; then \
+		echo "Migration filenames must be <14-digit-timestamp>_name.sql — create them with 'make db-new NAME=...'"; \
+		exit 1; \
+	fi; \
+	echo "All migration filenames OK."
 
 db-migrate: ## Apply pending migrations to local Supabase
 	supabase migration up

@@ -46,6 +46,19 @@ This builds the React frontend and serves everything from the Express server on 
 - Subsequent sprints start the day after the previous sprint ends
 - Weekends (Saturday/Sunday) are automatically skipped
 
+## Database migrations
+
+Migration files live in `supabase/migrations/` and **must** be named
+`<14-digit-timestamp>_name.sql` (e.g. `20260623091143_add_project_archived.sql`).
+The timestamp determines the apply order and is the key Supabase uses to track
+what has already run, so always create migrations with the CLI rather than by hand:
+
+```bash
+make db-new NAME=add_some_column   # wraps `supabase migration new` → correct timestamp
+make db-migrate                    # apply pending migrations locally
+make db-check                      # validate filenames (also enforced in CI before db push)
+```
+
 ## Tech Stack
 
 - **Frontend**: React 18 + React Router + Vite

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { mapProject, mapDeveloper, mapDayEntry, mapProjectShare, toProjectRow, toDeveloperRow, toDayEntryRow } from '../lib/mappers';
+import { mapProject, mapDeveloper, mapDayEntry, mapProjectShare, mapPublicLink, toProjectRow, toDeveloperRow, toDayEntryRow } from '../lib/mappers';
 import { calculateSprints, calculateProjectSummary } from '../lib/calculateSprints';
 
 // ── Projects ──
@@ -185,6 +185,63 @@ export function useProjectShares(projectId) {
   };
 
   return { shares, loading, fetchShares, shareProject, removeShare };
+}
+
+// ── Public (read-only) share links ──
+
+export function useProjectPublicLinks(projectId) {
+  const [links, setLinks] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchLinks = useCallback(async () => {
+    if (!projectId) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('project_public_links')
+        .select('*')
+        .eq('project_id', projectId)
+        .is('revoked_at', null)
+        .order('created_at');
+      // Non-owners simply see nothing (RLS restricts links to the owner).
+      setLinks(error ? [] : (data || []).map(mapPublicLink));
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
+  const createLink = async (label = '') => {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase
+      .from('project_public_links')
+      .insert({ project_id: projectId, label, created_by: user.id })
+      .select()
+      .single();
+    if (error) throw error;
+    const link = mapPublicLink(data);
+    setLinks((prev) => [...prev, link]);
+    return link;
+  };
+
+  const revokeLink = async (id) => {
+    const { error } = await supabase.from('project_public_links').delete().eq('id', id);
+    if (error) throw error;
+    setLinks((prev) => prev.filter((l) => l.id !== id));
+  };
+
+  return { links, loading, fetchLinks, createLink, revokeLink };
+}
+
+// Anonymous read of a shared project — the token is the credential.
+export async function fetchSharedProject(token) {
+  const { data, error } = await supabase.rpc('get_shared_project', { p_token: token });
+  if (error) throw error;
+  if (!data || !data.project) throw new Error('invalid_token');
+  return {
+    project: mapProject(data.project),
+    developers: (data.developers || []).map(mapDeveloper),
+    entries: (data.day_entries || []).map(mapDayEntry),
+  };
 }
 
 // ── Sprints (computed client-side) ──

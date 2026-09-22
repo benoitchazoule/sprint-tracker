@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useDevelopers, useSprints, useEntries, useProjectShares } from '../hooks/useApi';
+import { useDevelopers, useSprints, useEntries, useProjectShares, useProjectPublicLinks } from '../hooks/useApi';
 import { useToast } from '../components/Toast';
 import { useI18n } from '../i18n';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,7 +10,7 @@ import Modal from '../components/Modal';
 import {
   LayoutDashboard, Grid3X3, UserPlus, Trash2, Settings, CalendarPlus, GripVertical,
   ChevronLeft, ChevronRight, Pencil, ChevronDown, ChevronUp, Users, ArrowRight, Check,
-  Archive, ArchiveRestore, Share2, X, Mail,
+  Archive, ArchiveRestore, Share2, X, Mail, Link2, Copy, Eye, Check as CheckIcon,
 } from 'lucide-react';
 import { formatShortDate } from '../utils/dates';
 
@@ -26,6 +26,7 @@ export default function ProjectPage({ projects, onUpdateProject }) {
   const { sprints, loading: sprintsLoading, fetchSprints } = useSprints(projectId);
   const { setEntry, setBulkEntries, removeEntry } = useEntries(projectId);
   const { shares, fetchShares, shareProject, removeShare } = useProjectShares(projectId);
+  const { links: publicLinks, fetchLinks, createLink, revokeLink } = useProjectPublicLinks(projectId);
 
   const isOwner = project ? project.userId === user?.id : false;
 
@@ -56,7 +57,8 @@ export default function ProjectPage({ projects, onUpdateProject }) {
     fetchDevelopers();
     fetchSprints();
     fetchShares();
-  }, [fetchDevelopers, fetchSprints, fetchShares]);
+    fetchLinks();
+  }, [fetchDevelopers, fetchSprints, fetchShares, fetchLinks]);
 
   useEffect(() => {
     refresh();
@@ -231,6 +233,20 @@ export default function ProjectPage({ projects, onUpdateProject }) {
   async function handleRemoveShare(id) {
     await removeShare(id);
     showToast(t('toast.shareRemoved'));
+  }
+
+  async function handleCreateLink() {
+    try {
+      await createLink();
+      showToast(t('toast.linkCreated'));
+    } catch (e) {
+      showToast(t('publicLink.errorGeneric'));
+    }
+  }
+
+  async function handleRevokeLink(id) {
+    await revokeLink(id);
+    showToast(t('toast.linkRevoked'));
   }
 
   async function handleAddEvent({ name, startDate, endDate, developerIds }) {
@@ -536,6 +552,10 @@ export default function ProjectPage({ projects, onUpdateProject }) {
         <ShareModal
           t={t}
           shares={shares}
+          isOwner={isOwner}
+          publicLinks={publicLinks}
+          onCreateLink={handleCreateLink}
+          onRevokeLink={handleRevokeLink}
           onShare={handleShare}
           onRemove={handleRemoveShare}
           onClose={() => setShowShare(false)}
@@ -735,7 +755,7 @@ function DevEditModal({ dev, t, onSave, onClose }) {
   );
 }
 
-function ShareModal({ t, shares, onShare, onRemove, onClose }) {
+function ShareModal({ t, shares, isOwner, publicLinks, onCreateLink, onRevokeLink, onShare, onRemove, onClose }) {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -824,10 +844,78 @@ function ShareModal({ t, shares, onShare, onRemove, onClose }) {
         )}
       </div>
 
+      {isOwner && (
+        <div className="form-group" style={{ marginTop: '1.25rem', marginBottom: 0, borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+            <Eye size={13} /> {t('publicLink.title')}
+          </label>
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 'var(--leading-normal)', margin: '0.25rem 0 0.625rem' }}>
+            {t('publicLink.description')}
+          </p>
+
+          {publicLinks.length === 0 ? (
+            <button type="button" className="btn-secondary btn-icon btn-sm" onClick={onCreateLink}>
+              <Link2 size={14} /> {t('publicLink.create')}
+            </button>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+              {publicLinks.map((link) => (
+                <PublicLinkRow key={link.id} t={t} link={link} onRevoke={() => onRevokeLink(link.id)} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="form-actions">
         <button type="button" className="btn-secondary" onClick={onClose}>{t('form.cancel')}</button>
       </div>
     </Modal>
+  );
+}
+
+function PublicLinkRow({ t, link, onRevoke }) {
+  const [copied, setCopied] = useState(false);
+  const url = `${window.location.origin}/shared/${link.token}`;
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // Clipboard API unavailable (old browser, insecure context) — fall back
+      // to selecting the text so the user can copy it by hand.
+      window.prompt(t('publicLink.copyFallback'), url);
+      return;
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  }
+
+  return (
+    <div className="share-link-row">
+      <Link2 size={14} color="var(--text-light)" style={{ flexShrink: 0 }} />
+      <span className="share-link-url" title={url}>{url}</span>
+      <button
+        type="button"
+        className="btn-ghost"
+        style={{ padding: '0.125rem' }}
+        onClick={handleCopy}
+        title={t('publicLink.copy')}
+        aria-label={t('publicLink.copy')}
+      >
+        {copied ? <CheckIcon size={16} color="var(--success)" /> : <Copy size={16} />}
+      </button>
+      <button
+        type="button"
+        className="btn-ghost"
+        style={{ padding: '0.125rem' }}
+        onClick={onRevoke}
+        title={t('publicLink.revoke')}
+        aria-label={t('publicLink.revoke')}
+      >
+        <X size={16} color="var(--danger)" />
+      </button>
+    </div>
   );
 }
 

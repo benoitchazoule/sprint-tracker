@@ -8,6 +8,7 @@ A web application to track the consumption of available days within development 
 - **Excel-like grid editing** — Toggle worked/not-worked days with a single click, add comments for context
 - **Auto-recalculation** — When a developer is absent, all subsequent sprint dates are automatically updated
 - **Dashboard** — Progress stats, burn rate, absence log, and sprint timeline overview
+- **Sharing** — Give another account full edit access, or publish a secret read-only link
 - **Import/Export** — Save and restore all data as JSON files
 - **Weekend awareness** — Weekends are automatically skipped in sprint calculations
 
@@ -45,6 +46,29 @@ This builds the React frontend and serves everything from the Express server on 
 - If a developer is absent, only 1 day is consumed that day, extending the sprint
 - Subsequent sprints start the day after the previous sprint ends
 - Weekends (Saturday/Sunday) are automatically skipped
+
+## Sharing a project
+
+Two independent mechanisms, both managed from the share dialog on a project page
+(the share icon in the toolbar):
+
+| | Who | Access | Managed by |
+|---|---|---|---|
+| **User share** | An existing account, by email | Full edit access to the project, its developers and day entries. Cannot delete, archive or manage sharing. | Owner |
+| **View-only link** | Anyone holding the URL — no account needed | Read-only view at `/shared/<token>`, with two tabs: a *summary* (days consumed per sprint × developer, absences, projections) and a *day-by-day* detail — the same grid as the editor, without any control. CSV export on both. | Owner |
+
+The view-only link is meant for an assistant or a client who only needs to read
+the figures. Notes:
+
+- The token (64 hex chars) *is* the credential — treat the URL as a secret.
+- Anonymous visitors never touch the tables: they call the `get_shared_project`
+  RPC, which is `SECURITY DEFINER` and returns only the fields the consumption
+  view needs, for that single project.
+- **Absence comments are deliberately not exposed** through the link, since they
+  often carry personal context (sick leave, etc.). The day-by-day grid therefore
+  shows *that* a day was missed, never *why*.
+- Revoking deletes the link row: the URL stops working immediately.
+- Only the project owner can create or revoke links — a shared editor cannot.
 
 ## Database migrations
 

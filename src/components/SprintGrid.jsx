@@ -3,7 +3,7 @@ import { formatNumericDate, getDayName, isToday, isPast } from '../utils/dates';
 import { useI18n } from '../i18n';
 import { MessageSquare, Check, X } from 'lucide-react';
 
-export default function SprintGrid({ sprint, developers, onToggleDay, onUpdateComment, onResetDay }) {
+export default function SprintGrid({ sprint, developers, onToggleDay, onUpdateComment, onResetDay, readOnly = false }) {
   const { t, dateLocale } = useI18n();
   const [commentPopup, setCommentPopup] = useState(null);
   const [commentText, setCommentText] = useState('');
@@ -147,7 +147,7 @@ export default function SprintGrid({ sprint, developers, onToggleDay, onUpdateCo
 
   return (
     <div>
-      {selection.size > 0 && (
+      {!readOnly && selection.size > 0 && (
         <div className="bulk-action-bar">
           <span style={{ fontWeight: 600 }}>{t('grid.selected', { count: selection.size })}</span>
           <button className="btn-primary btn-sm btn-icon" onClick={() => handleBulkAction(1)}>
@@ -162,7 +162,7 @@ export default function SprintGrid({ sprint, developers, onToggleDay, onUpdateCo
       )}
 
       <div className="grid-container">
-        <table className="sprint-grid" ref={tableRef} onKeyDown={handleKeyDown}>
+        <table className="sprint-grid" ref={tableRef} onKeyDown={readOnly ? undefined : handleKeyDown}>
           <thead>
             <tr>
               <th style={{ minWidth: '160px' }}>{t('grid.date')}</th>
@@ -208,7 +208,7 @@ export default function SprintGrid({ sprint, developers, onToggleDay, onUpdateCo
                       return (
                         <td key={dev.id}>
                           <div className="day-cell">
-                            <div className="day-toggle inactive" title={t('grid.inactive')}>&mdash;</div>
+                            <div className={`day-toggle inactive ${readOnly ? 'static' : ''}`} title={t('grid.inactive')}>&mdash;</div>
                           </div>
                         </td>
                       );
@@ -238,16 +238,16 @@ export default function SprintGrid({ sprint, developers, onToggleDay, onUpdateCo
                       <td key={dev.id}>
                         <div className="day-cell">
                           <div
-                            ref={(el) => { cellRefs.current[refKey] = el; }}
-                            tabIndex={0}
-                            className={`day-toggle ${toggleClass} ${isSelected ? 'selected' : ''}`}
-                            onClick={(e) => handleCellClick(rowIdx, colIdx, day.date, dev.id, worked, devDay.comment, devDay.hasEntry, e)}
-                            onFocus={() => setFocusedCell({ row: rowIdx, col: colIdx })}
-                            title={toggleTitle}
+                            ref={readOnly ? undefined : (el) => { cellRefs.current[refKey] = el; }}
+                            tabIndex={readOnly ? undefined : 0}
+                            className={`day-toggle ${toggleClass} ${isSelected ? 'selected' : ''} ${readOnly ? 'static' : ''}`}
+                            onClick={readOnly ? undefined : (e) => handleCellClick(rowIdx, colIdx, day.date, dev.id, worked, devDay.comment, devDay.hasEntry, e)}
+                            onFocus={readOnly ? undefined : () => setFocusedCell({ row: rowIdx, col: colIdx })}
+                            title={readOnly ? baseTitle : toggleTitle}
                           >
                             {isDefaultFuture ? '?' : worked === 1 ? <Check size={16} /> : isHalfDay ? '½' : <X size={16} />}
                           </div>
-                          {worked < 1 && (
+                          {!readOnly && worked < 1 && (
                             <button className="btn-ghost btn-sm" onClick={(e) => openCommentPopup(day.date, dev.id, devDay.comment, e)} title={t('grid.addComment')}>
                               <MessageSquare size={14} />
                             </button>
@@ -278,7 +278,7 @@ export default function SprintGrid({ sprint, developers, onToggleDay, onUpdateCo
           </tbody>
         </table>
 
-        {commentPopup && (
+        {!readOnly && commentPopup && (
           <div ref={popupRef} className="comment-popup" style={{
             position: 'fixed',
             left: commentPopup.x,

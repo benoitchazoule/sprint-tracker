@@ -36,6 +36,17 @@ export function mapProjectShare(row) {
   };
 }
 
+export function mapPublicLink(row) {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    token: row.token,
+    label: row.label || '',
+    createdAt: row.created_at,
+    revokedAt: row.revoked_at,
+  };
+}
+
 export function mapDayEntry(row) {
   return {
     id: row.id,

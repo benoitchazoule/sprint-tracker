@@ -8,6 +8,7 @@ import HomePage from './pages/HomePage';
 import ProjectPage from './pages/ProjectPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
+import SharedProjectPage from './pages/SharedProjectPage';
 import UserMenu from './components/UserMenu';
 import { LayoutDashboard, FolderOpen, Zap, Plus, ChevronsLeft, ChevronsRight, ChevronDown, ChevronRight } from 'lucide-react';
 import Modal from './components/Modal';
@@ -259,7 +260,11 @@ export default function App() {
   return (
     <ToastProvider>
       <I18nProvider>
-        <AppContent />
+        <Routes>
+          {/* Public, token-protected read-only view — no auth, no sidebar */}
+          <Route path="/shared/:token" element={<SharedProjectPage />} />
+          <Route path="*" element={<AppContent />} />
+        </Routes>
       </I18nProvider>
     </ToastProvider>
   );
